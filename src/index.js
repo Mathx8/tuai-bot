@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const { iniciarServidor } = require('./server');
 const { Client, GatewayIntentBits } = require('discord.js');
 const { registrarComandos } = require('./commands');
 const { iniciarCron } = require('./cron');
@@ -21,6 +22,7 @@ const client = new Client({
 
 client.once('ready', () => {
     console.log(`[Bot] ✅ Online como ${client.user.tag}`);
+    iniciarServidor();
     iniciarCron(client);
 });
 
