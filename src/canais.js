@@ -6,7 +6,18 @@ const BASE = 'https://meuplayeronlinehd.com/myplay/watch.html?id=';
  * Canais que NÃO devem ter link (gratuitos, sem stream, etc.)
  * A checagem é feita por substring em lowercase.
  */
-const SEM_LINK = ['youtube', 'sportynet'];
+const SEM_LINK = ['sportynet'];
+
+function formatarYoutube(nome) {
+    // Extrai o handle @canal da URL ou do texto bruto
+    const match = nome.match(/@[\w.-]+/i);
+    if (match) {
+        const handle = match[0];
+        return `[YouTube ${handle}](https://youtube.com/${handle})`;
+    }
+    // Se não tiver @, só exibe o texto sem link
+    return nome;
+}
 
 /**
  * Mapeamento canal → um ou mais IDs do player.
@@ -14,10 +25,10 @@ const SEM_LINK = ['youtube', 'sportynet'];
  * O valor é um array de { label, id }.
  */
 const MAPA = [
-    { match: 'sportv 1', links: [{ label: 'SporTV 1', id: 'sportv' }] },
-    { match: 'sportv 2', links: [{ label: 'SporTV 2', id: 'sportv2' }] },
-    { match: 'sportv 3', links: [{ label: 'SporTV 3', id: 'sportv3' }] },
-    { match: 'sportv', links: [{ label: 'SporTV', id: 'sportv' }] },
+    { match: 'sportv 1', links: [{ label: 'Sportv 1', id: 'sportv' }] },
+    { match: 'sportv 2', links: [{ label: 'Sportv 2', id: 'sportv2' }] },
+    { match: 'sportv 3', links: [{ label: 'Sportv 3', id: 'sportv3' }] },
+    { match: 'sportv', links: [{ label: 'Sportv', id: 'sportv' }] },
     { match: 'espn 1', links: [{ label: 'ESPN 1', id: 'espn' }] },
     { match: 'espn 2', links: [{ label: 'ESPN 2', id: 'espn2' }] },
     { match: 'espn 3', links: [{ label: 'ESPN 3', id: 'espn3' }] },
@@ -33,16 +44,10 @@ const MAPA = [
         match: 'disney plus', links: [{ label: 'Disney+ 1', id: 'ds1' },
         { label: 'Disney+ 2', id: 'ds2' }]
     },
-    {
-        match: 'star+', links: [{ label: 'Star+ 1', id: 'starplus' },
-        { label: 'Star+ 2', id: 'starplus2' }]
-    },
-    {
-        match: 'star plus', links: [{ label: 'Star+ 1', id: 'starplus' },
-        { label: 'Star+ 2', id: 'starplus2' }]
-    },
     { match: 'paramount', links: [{ label: 'Paramount+', id: 'paramount1' }] },
-    { match: 'prime video', links: [{ label: 'Prime Video', id: 'amazon' }] },
+    { match: 'prime video', links: [{ label: 'Prime Video', id: 'primevideo1' }] },
+    { match: 'premiere', links: [{ label: 'Premiere', id: 'premiere' }] },
+    { match: 'xsports', links: [{ label: 'Xsports', id: 'xsports' }] },
 ];
 
 /**
@@ -52,6 +57,7 @@ const MAPA = [
  * @param {string} canalRaw  - valor bruto do campo canal (ex: "SporTV 2, ESPN 1")
  * @returns {string}         - string pronta para embed (com markdown de links)
  */
+
 function formatarCanais(canalRaw) {
     if (!canalRaw) return 'Não informado';
 
@@ -61,6 +67,7 @@ function formatarCanais(canalRaw) {
     const partes = nomes.flatMap((nome) => {
         const lower = nome.toLowerCase();
 
+        if (lower.includes('youtube')) return [formatarYoutube(nome)];
         // Canais sem link
         if (SEM_LINK.some((s) => lower.includes(s))) return [nome];
 
