@@ -24,9 +24,11 @@ npm run dev
 
 | Comando | Descrição |
 |---|---|
-| `!jogos` | Lista os jogos de hoje |
-| `!jogos <time>` | Jogos pelo nome do time informado |
-| `!campeonato <nome>` | Jogos pelo nome do campeonato |
+| `!jogos` | Lista os jogos de futebol |
+| `!jogos <time>` | Jogos de futebol pelo nome do time informado |
+| `!campeonato <nome>` | Jogos de futebol pelo nome do campeonato |
+| `!nba` | Lista os jogos de basquete |
+| `!nba <time>` | Jogos de basquete pelo nome do time informado |
 | `!ajuda` | Lista todos os comandos |
 
 ## Variáveis de ambiente

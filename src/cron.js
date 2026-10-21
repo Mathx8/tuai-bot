@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { buscarJogos } = require('./scraper');
+const { buscarJogosBasquete } = require('./scraperBasquete');
 
 /**
  * Inicia o agendamento — atualmente apenas loga os jogos encontrados.
@@ -16,11 +17,22 @@ function iniciarCron(client) {
 
     cron.schedule(intervalo, async () => {
         console.log('[Cron] Verificando jogos do dia...');
-        try {
-            const jogos = await buscarJogos();
-            console.log(`[Cron] ${jogos.length} jogo(s) encontrado(s).`);
-        } catch (err) {
-            console.error('[Cron] Falha ao buscar jogos:', err.message);
+
+        const [futebol, basquete] = await Promise.allSettled([
+            buscarJogos(),
+            buscarJogosBasquete(),
+        ]);
+
+        if (futebol.status === 'fulfilled') {
+            console.log(`[Cron] Futebol: ${futebol.value.length} jogo(s) encontrado(s).`);
+        } else {
+            console.error('[Cron] Falha ao buscar jogos de futebol:', futebol.reason?.message);
+        }
+
+        if (basquete.status === 'fulfilled') {
+            console.log(`[Cron] Basquete: ${basquete.value.length} jogo(s) encontrado(s).`);
+        } else {
+            console.error('[Cron] Falha ao buscar jogos de basquete:', basquete.reason?.message);
         }
     });
 

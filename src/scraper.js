@@ -13,8 +13,8 @@ const URL_JOGOS = 'https://mantosdofutebol.com.br/guia-de-jogos-tv-hoje-ao-vivo/
 
 function normalizar(str) {
     return str
-        .normalize('NFD')               // decompõe "á" em "a" + acento
-        .replace(/[\u0300-\u036f]/g, '') // remove os acentos
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
 }
 

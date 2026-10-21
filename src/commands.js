@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { buscarJogos, normalizar } = require('./scraper');
+const { buscarJogosBasquete } = require('./scraperBasquete');
 const { formatarCanais } = require('./canais');
 
 const PREFIX = process.env.PREFIX || '!';
@@ -17,36 +18,50 @@ const COR = {
     neutro: 0x455a64,
 };
 
+const TEMA_FUTEBOL = {
+    emoji: '⚽',
+    cor: COR.principal,
+    fonte: 'Mantos do Futebol',
+    titulo: 'Jogos de Hoje',
+};
+
+const TEMA_NBA = {
+    emoji: '🏀',
+    cor: 0xf57c00,
+    fonte: 'Jogosdehojenatv',
+    titulo: 'NBA — Jogos de Hoje',
+};
+
 // ──────────────────────────────────────────
 // Helpers de embed
 // ──────────────────────────────────────────
 
-function rodape(pagina, total) {
+function rodape(pagina, total, tema = TEMA_FUTEBOL) {
     const pag = total > 1 ? `  •  Página ${pagina}/${total}` : '';
-    return { text: `⚽ TuaiSoccer  •  Dados: Mantos do Futebol${pag}` };
+    return { text: `${tema.emoji} TuaiSoccer  •  Dados: ${tema.fonte}${pag}` };
 }
 
 function embedErro(descricao) {
     return new EmbedBuilder()
         .setColor(COR.erro)
         .setDescription(`❌  ${descricao}`)
-        .setFooter({ text: '⚽ TuaiSoccer  •  Dados: Mantos do Futebol' });
+        .setFooter({ text: '⚽ TuaiSoccer' });
 }
 
 function embedAviso(descricao) {
     return new EmbedBuilder()
         .setColor(COR.aviso)
         .setDescription(`⚠️  ${descricao}`)
-        .setFooter({ text: '⚽ TuaiSoccer  •  Dados: Mantos do Futebol' });
+        .setFooter({ text: '⚽ TuaiSoccer' });
 }
 
 // ──────────────────────────────────────────
 // Formatação de jogo
 // ──────────────────────────────────────────
 
-function jogoParaField(jogo) {
+function jogoParaField(jogo, tema = TEMA_FUTEBOL) {
     return {
-        name: `⚽  ${jogo.confronto || 'Confronto não informado'}`,
+        name: `${tema.emoji}  ${jogo.confronto || 'Confronto não informado'}`,
         value:
             `> ⏰ **Horário:** ${jogo.horario || '—'}\n` +
             `> 🏆 **Campeonato:** ${jogo.campeonato || '—'}\n` +
@@ -59,10 +74,10 @@ function jogoParaField(jogo) {
 // Monta embed de uma página
 // ──────────────────────────────────────────
 
-function montarEmbedJogos(jogos, filtro, pagina, totalPaginas) {
+function montarEmbedJogos(jogos, filtro, pagina, totalPaginas, tema = TEMA_FUTEBOL) {
     const titulo = filtro
-        ? `🔍  Jogos de hoje — ${filtro}`
-        : '⚽  Jogos de Hoje';
+        ? `🔍  ${tema.titulo} — ${filtro}`
+        : `${tema.emoji}  ${tema.titulo}`;
 
     const fatia = jogos.slice(
         (pagina - 1) * JOGOS_POR_PAGINA,
@@ -70,14 +85,14 @@ function montarEmbedJogos(jogos, filtro, pagina, totalPaginas) {
     );
 
     return new EmbedBuilder()
-        .setColor(COR.principal)
+        .setColor(tema.cor)
         .setTitle(titulo)
         .setDescription(
             `**${jogos.length}** jogo(s) encontrado(s)` +
             (filtro ? ` para **${filtro}**` : '')
         )
-        .addFields(fatia.map(jogoParaField))
-        .setFooter(rodape(pagina, totalPaginas))
+        .addFields(fatia.map((j) => jogoParaField(j, tema)))
+        .setFooter(rodape(pagina, totalPaginas, tema))
         .setTimestamp();
 }
 
@@ -119,24 +134,22 @@ function montarBotoes(pagina, totalPaginas) {
 // Lógica de paginação interativa
 // ──────────────────────────────────────────
 
-async function enviarComPaginacao(message, jogos, filtro) {
+async function enviarComPaginacao(message, jogos, filtro, tema = TEMA_FUTEBOL) {
     const totalPaginas = Math.ceil(jogos.length / JOGOS_POR_PAGINA);
     let pagina = 1;
 
     const payload = (p) => ({
-        embeds: [montarEmbedJogos(jogos, filtro, p, totalPaginas)],
+        embeds: [montarEmbedJogos(jogos, filtro, p, totalPaginas, tema)],
         components: totalPaginas > 1 ? [montarBotoes(p, totalPaginas)] : [],
     });
 
     const msg = await message.reply(payload(pagina));
 
-    // Se só tem uma página, não precisa de collector
     if (totalPaginas <= 1) return;
 
     const collector = msg.createMessageComponentCollector({
         componentType: ComponentType.Button,
         time: TIMEOUT_PAGINACAO,
-        // Só o autor do comando pode navegar
         filter: (i) => i.user.id === message.author.id,
     });
 
@@ -150,15 +163,12 @@ async function enviarComPaginacao(message, jogos, filtro) {
     });
 
     collector.on('end', async () => {
-        // Remove os botões ao expirar
         try {
             await msg.edit({
-                embeds: [montarEmbedJogos(jogos, filtro, pagina, totalPaginas)],
+                embeds: [montarEmbedJogos(jogos, filtro, pagina, totalPaginas, tema)],
                 components: [],
             });
-        } catch (_) {
-            // Mensagem pode ter sido deletada
-        }
+        } catch (_) { }
     });
 }
 
@@ -217,9 +227,53 @@ function registrarComandos(client) {
                         return;
                     }
 
-                    // Deleta o "buscando" e envia a paginação como nova mensagem
                     await msg.delete().catch(() => { });
                     await enviarComPaginacao(message, jogos, filtro || null);
+                    break;
+                }
+
+                // ──────────────────────────────
+                // !nba [time]
+                // ──────────────────────────────
+                case 'nba': {
+                    const filtro = args.join(' ').trim();
+
+                    const buscando = new EmbedBuilder()
+                        .setColor(COR.neutro)
+                        .setDescription(
+                            filtro
+                                ? `🔎  Buscando jogos da NBA de **${filtro}**, aguarde...`
+                                : '🔎  Buscando jogos da NBA de hoje, aguarde...'
+                        )
+                        .setFooter({ text: `${TEMA_NBA.emoji} TuaiSoccer  •  Dados: ${TEMA_NBA.fonte}` });
+
+                    const msg = await message.reply({ embeds: [buscando] });
+
+                    let nba = (await buscarJogosBasquete()).filter((j) =>
+                        normalizar(j.campeonato).includes('nba')
+                    );
+
+                    if (filtro) {
+                        nba = nba.filter((j) =>
+                            normalizar(j.confronto).includes(normalizar(filtro))
+                        );
+                    }
+
+                    if (!nba.length) {
+                        await msg.edit({
+                            embeds: [
+                                embedAviso(
+                                    filtro
+                                        ? `Nenhum jogo da NBA encontrado para **${filtro}** hoje.`
+                                        : 'Nenhum jogo da NBA encontrado para hoje.'
+                                ),
+                            ],
+                        });
+                        return;
+                    }
+
+                    await msg.delete().catch(() => { });
+                    await enviarComPaginacao(message, nba, filtro || null, TEMA_NBA);
                     break;
                 }
 
@@ -285,12 +339,22 @@ function registrarComandos(client) {
                                 inline: false,
                             },
                             {
+                                name: `\`${PREFIX}nba\``,
+                                value: 'Lista os jogos da NBA de hoje com paginação interativa.',
+                                inline: false,
+                            },
+                            {
+                                name: `\`${PREFIX}nba <time>\``,
+                                value: 'Filtra os jogos da NBA de hoje pelo nome do time.',
+                                inline: false,
+                            },
+                            {
                                 name: `\`${PREFIX}ajuda\``,
                                 value: 'Exibe esta mensagem.',
                                 inline: false,
                             }
                         )
-                        .setFooter({ text: '⚽ TuaiSoccer  •  Dados: Mantos do Futebol' })
+                        .setFooter({ text: '⚽ TuaiSoccer' })
                         .setTimestamp();
 
                     await message.reply({ embeds: [embed] });

@@ -1,5 +1,3 @@
-// src/canais.js
-
 const BASE = 'https://meuplayeronlinehd.com/myplay/watch.html?id=';
 
 /**
@@ -9,13 +7,11 @@ const BASE = 'https://meuplayeronlinehd.com/myplay/watch.html?id=';
 const SEM_LINK = ['sportynet'];
 
 function formatarYoutube(nome) {
-    // Extrai o handle @canal da URL ou do texto bruto
     const match = nome.match(/@[\w.-]+/i);
     if (match) {
         const handle = match[0];
         return `[YouTube ${handle}](https://youtube.com/${handle})`;
     }
-    // Se não tiver @, só exibe o texto sem link
     return nome;
 }
 
@@ -54,26 +50,23 @@ const MAPA = [
  * Recebe a string bruta do campo canal e retorna os links formatados para o Discord.
  * Canais sem mapeamento mostram só o nome, sem link.
  *
- * @param {string} canalRaw  - valor bruto do campo canal (ex: "SporTV 2, ESPN 1")
- * @returns {string}         - string pronta para embed (com markdown de links)
+ * @param {string} canalRaw
+ * @returns {string}
  */
 
 function formatarCanais(canalRaw) {
     if (!canalRaw) return 'Não informado';
 
-    // O campo pode ter múltiplos canais separados por vírgula
     const nomes = canalRaw.split(',').map((c) => c.trim()).filter(Boolean);
 
     const partes = nomes.flatMap((nome) => {
         const lower = nome.toLowerCase();
 
         if (lower.includes('youtube')) return [formatarYoutube(nome)];
-        // Canais sem link
         if (SEM_LINK.some((s) => lower.includes(s))) return [nome];
 
-        // Busca no mapa (mais específico primeiro — ordem do array importa)
         const entrada = MAPA.find((m) => lower.includes(m.match));
-        if (!entrada) return [nome]; // sem mapeamento → exibe só o nome
+        if (!entrada) return [nome];
 
         return entrada.links.map((l) => `[${l.label}](${BASE}${l.id})`);
     });
