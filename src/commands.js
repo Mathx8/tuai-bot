@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { buscarJogos, normalizar } = require('./scraper');
 const { buscarJogosBasquete } = require('./scraperBasquete');
+const { buscarJogosLuta } = require('./scraperLuta');
 const { formatarCanais } = require('./canais');
 
 const PREFIX = process.env.PREFIX || '!';
@@ -32,27 +33,34 @@ const TEMA_NBA = {
     titulo: 'NBA — Jogos de Hoje',
 };
 
+const TEMA_LUTA = {
+    emoji: '🥊',
+    cor: 0x8e24aa,
+    fonte: 'Jogosdehojenatv',
+    titulo: 'Lutas de Hoje',
+};
+
 // ──────────────────────────────────────────
 // Helpers de embed
 // ──────────────────────────────────────────
 
 function rodape(pagina, total, tema = TEMA_FUTEBOL) {
     const pag = total > 1 ? `  •  Página ${pagina}/${total}` : '';
-    return { text: `${tema.emoji} TuaiSoccer  •  Dados: ${tema.fonte}${pag}` };
+    return { text: `${tema.emoji} TuaiSport  •  Dados: ${tema.fonte}${pag}` };
 }
 
 function embedErro(descricao) {
     return new EmbedBuilder()
         .setColor(COR.erro)
         .setDescription(`❌  ${descricao}`)
-        .setFooter({ text: '⚽ TuaiSoccer' });
+        .setFooter({ text: '⚽ TuaiSport' });
 }
 
 function embedAviso(descricao) {
     return new EmbedBuilder()
         .setColor(COR.aviso)
         .setDescription(`⚠️  ${descricao}`)
-        .setFooter({ text: '⚽ TuaiSoccer' });
+        .setFooter({ text: '⚽ TuaiSport' });
 }
 
 // ──────────────────────────────────────────
@@ -202,7 +210,7 @@ function registrarComandos(client) {
                                 ? `🔎  Buscando jogos de **${filtro}**, aguarde...`
                                 : '🔎  Buscando jogos do dia, aguarde...'
                         )
-                        .setFooter({ text: '⚽ TuaiSoccer  •  Dados: Mantos do Futebol' });
+                        .setFooter({ text: '⚽ TuaiSport  •  Dados: Mantos do Futebol' });
 
                     const msg = await message.reply({ embeds: [buscando] });
 
@@ -245,7 +253,7 @@ function registrarComandos(client) {
                                 ? `🔎  Buscando jogos da NBA de **${filtro}**, aguarde...`
                                 : '🔎  Buscando jogos da NBA de hoje, aguarde...'
                         )
-                        .setFooter({ text: `${TEMA_NBA.emoji} TuaiSoccer  •  Dados: ${TEMA_NBA.fonte}` });
+                        .setFooter({ text: `${TEMA_NBA.emoji} TuaiSport  •  Dados: ${TEMA_NBA.fonte}` });
 
                     const msg = await message.reply({ embeds: [buscando] });
 
@@ -278,6 +286,51 @@ function registrarComandos(client) {
                 }
 
                 // ──────────────────────────────
+                // !lutas [lutador]
+                // ──────────────────────────────
+                case 'lutas': {
+                    const filtro = args.join(' ').trim();
+
+                    const buscando = new EmbedBuilder()
+                        .setColor(COR.neutro)
+                        .setDescription(
+                            filtro
+                                ? `🔎  Buscando lutas de **${filtro}**, aguarde...`
+                                : '🔎  Buscando lutas de hoje, aguarde...'
+                        )
+                        .setFooter({ text: `${TEMA_LUTA.emoji} TuaiSport  •  Dados: ${TEMA_LUTA.fonte}` });
+
+                    const msg = await message.reply({ embeds: [buscando] });
+
+                    let luta = await buscarJogosLuta();
+
+                    if (filtro) {
+                        // Filtra por lutador/evento OU por modalidade (ufc, boxe, mma, muay thai)
+                        luta = luta.filter((j) =>
+                            normalizar(j.confronto).includes(normalizar(filtro)) ||
+                            normalizar(j.campeonato).includes(normalizar(filtro))
+                        );
+                    }
+
+                    if (!luta.length) {
+                        await msg.edit({
+                            embeds: [
+                                embedAviso(
+                                    filtro
+                                        ? `Nenhuma luta encontrada para **${filtro}** hoje.`
+                                        : 'Nenhuma luta encontrada para hoje.'
+                                ),
+                            ],
+                        });
+                        return;
+                    }
+
+                    await msg.delete().catch(() => { });
+                    await enviarComPaginacao(message, luta, filtro || null, TEMA_LUTA);
+                    break;
+                }
+
+                // ──────────────────────────────
                 // !campeonato [nome]
                 // ──────────────────────────────
                 case 'campeonato': {
@@ -292,7 +345,7 @@ function registrarComandos(client) {
                     const buscando = new EmbedBuilder()
                         .setColor(COR.neutro)
                         .setDescription(`🔎  Buscando jogos do campeonato **${filtro}**, aguarde...`)
-                        .setFooter({ text: '⚽ TuaiSoccer  •  Dados: Mantos do Futebol' });
+                        .setFooter({ text: '⚽ TuaiSport  •  Dados: Mantos do Futebol' });
 
                     const msg = await message.reply({ embeds: [buscando] });
 
@@ -321,7 +374,7 @@ function registrarComandos(client) {
                     const embed = new EmbedBuilder()
                         .setColor(COR.info)
                         .setTitle('📖  Comandos Disponíveis')
-                        .setDescription('Todos os comandos do TuaiSoccer.')
+                        .setDescription('Todos os comandos do TuaiSport.')
                         .addFields(
                             {
                                 name: `\`${PREFIX}jogos\``,
@@ -349,12 +402,22 @@ function registrarComandos(client) {
                                 inline: false,
                             },
                             {
+                                name: `\`${PREFIX}lutas\``,
+                                value: 'Lista as lutas de hoje (UFC, boxe, MMA, muay thai) com paginação.',
+                                inline: false,
+                            },
+                            {
+                                name: `\`${PREFIX}lutas <lutador ou modalidade>\``,
+                                value: 'Filtra por lutador, evento ou modalidade (ex: `ufc`, `boxe`).',
+                                inline: false,
+                            },
+                            {
                                 name: `\`${PREFIX}ajuda\``,
                                 value: 'Exibe esta mensagem.',
                                 inline: false,
                             }
                         )
-                        .setFooter({ text: '⚽ TuaiSoccer' })
+                        .setFooter({ text: '⚽ TuaiSport' })
                         .setTimestamp();
 
                     await message.reply({ embeds: [embed] });

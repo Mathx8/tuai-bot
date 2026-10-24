@@ -44,6 +44,7 @@ const MAPA = [
     { match: 'prime video', links: [{ label: 'Prime Video', id: 'primevideo1' }] },
     { match: 'premiere', links: [{ label: 'Premiere', id: 'premiere' }] },
     { match: 'xsports', links: [{ label: 'Xsports', id: 'xsports' }] },
+    { match: 'combate', links: [{ label: 'Combate', id: 'combate' }] },
 ];
 
 /**
